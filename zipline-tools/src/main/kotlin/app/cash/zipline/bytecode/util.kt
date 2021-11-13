@@ -15,32 +15,17 @@
  */
 package app.cash.zipline.bytecode
 
-import app.cash.zipline.QuickJs
-import okio.Buffer
-import org.junit.After
-import org.junit.Test
+@Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
+internal inline infix fun Byte.and(other: Int): Int = toInt() and other
 
-class QuickJsObjectReaderTest {
-  private val quickJs = QuickJs.create()
+/** Like QuickJS' `bc_get_flags` where n is 1. */
+@Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
+internal inline fun Int.bitToBoolean(bit: Int): Boolean {
+  return (this shr bit) and 0x1 != 0x1
+}
 
-  @After fun tearDown() {
-    quickJs.close()
-  }
-
-  @Test fun happyPath() {
-    val bytecode: ByteArray = quickJs.compile(
-      """
-      |function greet(name) {
-      |  return "hello, " + name;
-      |}
-      """.trimMargin(), "hello.js"
-    )
-
-    quickJs.execute(bytecode)
-
-
-    val reader = QuickJsObjectReader(Buffer().write(bytecode))
-    val jsObject = reader.readObject()
-    println(jsObject)
-  }
+/** Like QuickJS' `bc_get_flags` where n is > 1. */
+@Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
+internal inline fun Int.bitsToInt(bit: Int, bitCount: Int): Int {
+  return (this shr bit) and ((1 shr bitCount) - 1)
 }
