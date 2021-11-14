@@ -50,7 +50,7 @@ class AtomSet(
 
 /** This is computed dynamically at QuickJS boot, and depends on build flags. */
 private val BUILT_IN_ATOMS = listOf(
-  "",
+  "\u0000", // JS_ATOM_NULL
   "null",
   "false",
   "true",

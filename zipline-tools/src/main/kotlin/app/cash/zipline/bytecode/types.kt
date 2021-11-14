@@ -58,7 +58,7 @@ data class JsFunctionBytecode(
   val backtraceBarrier get() = flags.bit(11)
 }
 
-class JsVarDef(
+data class JsVarDef(
   val name: String,
   val scopeLevel: Int,
   val scopeNext: Int,
@@ -68,7 +68,7 @@ class JsVarDef(
   val isCaptured: Boolean,
 )
 
-class JsClosureVar(
+data class JsClosureVar(
   val name: String,
   val varIndex: Int,
   val isLocal: Boolean,
@@ -78,7 +78,7 @@ class JsClosureVar(
   val kind: Int, // JsVarKindEnum
 )
 
-class Debug(
+data class Debug(
   val fileName: String,
   val lineNumber: Int,
   val pc2Line: ByteString,

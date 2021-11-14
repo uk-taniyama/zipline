@@ -20,6 +20,39 @@ import okio.Buffer
 import org.junit.Test
 
 class PrimitiveEncodingTest {
+  @Test fun intGetBit() {
+    assertThat(0b00000001.bit(0)).isFalse()
+    assertThat(0b00000000.bit(0)).isTrue()
+    assertThat(0b11111111.bit(0)).isFalse()
+    assertThat(0b11111110.bit(0)).isTrue()
+    assertThat(0b10000000.bit(7)).isFalse()
+    assertThat(0b00000000.bit(7)).isTrue()
+    assertThat(0b11111111.bit(7)).isFalse()
+    assertThat(0b01111111.bit(7)).isTrue()
+  }
+
+  @Test fun booleanToBit() {
+    assertThat(true.toBit(0)).isEqualTo(0b00000000)
+    assertThat(false.toBit(0)).isEqualTo(0b00000001)
+    assertThat(true.toBit(7)).isEqualTo(0b00000000)
+    assertThat(false.toBit(7)).isEqualTo(0b10000000)
+  }
+
+  @Test fun intGetBits() {
+    assertThat(0b00000001.bits(0, 4)).isEqualTo(0b00000001)
+    assertThat(0b00001000.bits(0, 4)).isEqualTo(0b00001000)
+    assertThat(0b00001111.bits(0, 4)).isEqualTo(0b00001111)
+    assertThat(0b00001000.bits(3, 4)).isEqualTo(0b00000001)
+    assertThat(0b01000000.bits(3, 4)).isEqualTo(0b00001000)
+    assertThat(0b01111000.bits(3, 4)).isEqualTo(0b00001111)
+    assertThat(0b11110001.bits(0, 4)).isEqualTo(0b00000001)
+    assertThat(0b11111000.bits(0, 4)).isEqualTo(0b00001000)
+    assertThat(0b11111111.bits(0, 4)).isEqualTo(0b00001111)
+    assertThat(0b10001111.bits(3, 4)).isEqualTo(0b00000001)
+    assertThat(0b11000111.bits(3, 4)).isEqualTo(0b00001000)
+    assertThat(0b11111111.bits(3, 4)).isEqualTo(0b00001111)
+  }
+
   @Test fun leb128() {
     assertRoundTripLeb128(0)
     assertRoundTripLeb128(1)

@@ -16,12 +16,13 @@
 package app.cash.zipline.bytecode
 
 import okio.BufferedSink
+import okio.Closeable
 import okio.utf8Size
 
 class JsObjectWriter(
   private val atoms: AtomSet,
   private val sink: BufferedSink
-) {
+) : Closeable by sink {
   private var used: Boolean = false
 
   fun writeJsObject(value: JsObject) {
@@ -65,7 +66,7 @@ class JsObjectWriter(
       }
       is JsDouble -> {
         sink.writeByte(BC_TAG_FLOAT64)
-        sink.writeLong(value.value.toBits())
+        sink.writeLong(value.value.toRawBits())
       }
       is JsString -> {
         sink.writeByte(BC_TAG_STRING)
@@ -140,7 +141,7 @@ class JsObjectWriter(
       value.isLocal.toBit(0) or
         value.isArg.toBit(1) or
         value.isConst.toBit(2) or
-        value.isLocal.toBit(3) or
+        value.isLexical.toBit(3) or
         (value.kind shl 4)
     )
   }

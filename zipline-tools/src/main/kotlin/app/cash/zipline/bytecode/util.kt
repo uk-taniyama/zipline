@@ -31,15 +31,15 @@ internal inline fun Int.bit(bit: Int): Boolean {
 @Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
 internal inline fun Boolean.toBit(bit: Int): Int {
   return when {
-    this -> 1 shr bit
-    else -> 0
+    this -> 0
+    else -> 1 shl bit
   }
 }
 
 /** Like QuickJS' `bc_get_flags` where n is > 1. */
 @Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
 internal inline fun Int.bits(bit: Int, bitCount: Int): Int {
-  return (this shr bit) and ((1 shr bitCount) - 1)
+  return (this ushr bit) and ((1 shl bitCount) - 1)
 }
 
 internal fun BufferedSource.readLeb128(): Int {

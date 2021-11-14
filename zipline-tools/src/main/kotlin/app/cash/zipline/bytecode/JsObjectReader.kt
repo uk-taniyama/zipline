@@ -17,11 +17,12 @@ package app.cash.zipline.bytecode
 
 import okio.Buffer
 import okio.BufferedSource
+import okio.Closeable
 import okio.IOException
 
 class JsObjectReader(
   private val source: BufferedSource,
-) {
+) : Closeable by source {
   // private val JS_WRITE_OBJ_BYTECODE: Boolean = true,
   // private val JS_WRITE_OBJ_REFERENCE: Boolean = true,
 

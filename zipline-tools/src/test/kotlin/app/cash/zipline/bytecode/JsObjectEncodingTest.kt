@@ -18,8 +18,9 @@ package app.cash.zipline.bytecode
 import app.cash.zipline.QuickJs
 import com.google.common.truth.Truth.assertThat
 import okio.Buffer
-import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import org.junit.After
 import org.junit.Test
 
@@ -31,7 +32,7 @@ class JsObjectEncodingTest {
   }
 
   @Test fun decodeAndEncode() {
-    val bytecode: ByteArray = quickJs.compile(
+    val evalFunction = assertRoundTrip(
       """
       |function greet(name) {
       |  return "hello, " + name;
@@ -39,10 +40,6 @@ class JsObjectEncodingTest {
       """.trimMargin(), "hello.js"
     )
 
-    quickJs.execute(bytecode)
-
-    val reader = JsObjectReader(bytecode)
-    val evalFunction = reader.readJsObject() as JsFunctionBytecode
     assertThat(evalFunction.name).isEqualTo("<eval>")
     assertThat(evalFunction.debug?.fileName).isEqualTo("hello.js")
     assertThat(evalFunction.debug?.lineNumber).isEqualTo(1)
@@ -53,16 +50,68 @@ class JsObjectEncodingTest {
     assertThat(greetFunction.locals.single().name).isEqualTo("name")
     assertThat(greetFunction.debug?.fileName).isEqualTo("hello.js")
     assertThat(greetFunction.debug?.lineNumber).isEqualTo(1)
-
-    // Confirm we encode back to the original bytes. To get byte-for-byte equality we must use the
-    // reader's AtomSet.
-    assertThat(evalFunction.encode(reader.atoms)).isEqualTo(bytecode.toByteString())
   }
 
-  private fun JsObject.encode(atoms: AtomSet): ByteString {
+  @Test fun primitiveValues() {
+    assertRoundTrip(
+      """
+      |function primitiveValues() {
+      |  return [
+      |    null,
+      |    undefined,
+      |    false,
+      |    true,
+      |    2147483647,
+      |    2.7182818284590452354,
+      |    "hello"
+      |  ];
+      |}
+      """.trimMargin()
+    )
+  }
+
+  @Test fun atomsInNames() {
+    val evalFunction = assertRoundTrip(
+      """
+      |function toString() {
+      |  return "JSON"
+      |}
+      """.trimMargin()
+    )
+    assertThat(evalFunction.name).isEqualTo("<eval>")
+    val toStringFunction = evalFunction.constantPool.single() as JsFunctionBytecode
+    assertThat(toStringFunction.name).isEqualTo("toString")
+  }
+
+  @Test fun kotlinStdlib() {
+    val script = FileSystem.SYSTEM.read("/Users/jwilson/Projects/zipline/zipline/build/generated/testingJs/kotlin-kotlin-stdlib-js-ir.js".toPath()) {
+      readUtf8()
+    }
+    assertRoundTrip(script)
+  }
+
+  /** Returns the model object for the bytecode of [script]. */
+  private fun assertRoundTrip(
+    script: String,
+    fileName: String = "test.js"
+  ): JsFunctionBytecode {
+    // Use QuickJS to compile a script into bytecode.
+    val bytecode: ByteArray = quickJs.compile(script, fileName)
+
+    // Confirm we can decode the bytecode.
+    val reader = JsObjectReader(bytecode)
+    val decoded = reader.use {
+      reader.readJsObject()
+    }
+
+    // Confirm that encoding the model yields the original bytecode.
     val buffer = Buffer()
-    JsObjectWriter(atoms, buffer)
-      .writeJsObject(this)
-    return buffer.readByteString()
+    JsObjectWriter(reader.atoms, buffer).use { writer ->
+      writer.writeJsObject(decoded)
+    }
+    assertThat(buffer.readByteString()).isEqualTo(bytecode.toByteString())
+
+    // Return the decoded model.
+    return decoded as JsFunctionBytecode
   }
 }
