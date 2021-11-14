@@ -53,12 +53,8 @@ internal fun BufferedSource.readLeb128(): Int {
 }
 
 internal fun BufferedSource.readSleb128(): Int {
-  val magnitudeAndSign = readLeb128()
-  val magnitude = magnitudeAndSign ushr 1
-  return when {
-    magnitudeAndSign and 0x1 == 0x1 -> -magnitude
-    else -> magnitude
-  }
+  val value = readLeb128()
+  return (value ushr 1) xor -(value and 0x1)
 }
 
 internal fun BufferedSink.writeLeb128(value: Int) {
@@ -71,9 +67,5 @@ internal fun BufferedSink.writeLeb128(value: Int) {
 }
 
 internal fun BufferedSink.writeSleb128(value: Int) {
-  val magnitudeAndSign = when {
-    value >= 0 -> value shl 1
-    else -> (value shl 1) or 0x1
-  }
-  writeLeb128(magnitudeAndSign)
+  writeLeb128((value shl 1) xor -(value ushr 31))
 }
