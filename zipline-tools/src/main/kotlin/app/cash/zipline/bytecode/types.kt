@@ -15,6 +15,7 @@
  */
 package app.cash.zipline.bytecode
 
+import okio.Buffer
 import okio.ByteString
 
 sealed class JsObject
@@ -82,4 +83,7 @@ data class Debug(
   val fileName: String,
   val lineNumber: Int,
   val pc2Line: ByteString,
-)
+) {
+  fun lineNumberReader(): LineNumberReader =
+    LineNumberReader(lineNumber, Buffer().write(pc2Line))
+}

@@ -90,6 +90,31 @@ class JsObjectEncodingTest {
     assertRoundTrip(script)
   }
 
+  @Test fun lineNumbers() {
+    val evalFunction = assertRoundTrip(
+      """
+      |function functionWithLineNumbers() {
+      |  console.log("line 2");
+      |  // this line intentionally left blank.
+      |  // this line intentionally left blank.
+      |  console.log("line 5");
+      |  console.log("line 6");
+      |  // this line intentionally left blank.
+      |  console.log("line 8");
+      |  return 0;
+      |}
+      """.trimMargin()
+    )
+
+    assertThat(evalFunction.name).isEqualTo("<eval>")
+    assertThat(evalFunction.debug?.lineNumberReader()?.realAllLineNumbers())
+      .containsExactly(0, 10)
+
+    val greetFunction = evalFunction.constantPool.single() as JsFunctionBytecode
+    assertThat(greetFunction.debug?.lineNumberReader()?.realAllLineNumbers())
+      .containsExactly(2, 5, 6, 8, 9)
+  }
+
   /** Returns the model object for the bytecode of [script]. */
   private fun assertRoundTrip(
     script: String,
@@ -113,5 +138,15 @@ class JsObjectEncodingTest {
 
     // Return the decoded model.
     return decoded as JsFunctionBytecode
+  }
+
+  private fun LineNumberReader.realAllLineNumbers(): List<Int> {
+    val result = mutableListOf<Int>()
+    use {
+      while (next()) {
+        result.add(line)
+      }
+    }
+    return result
   }
 }
