@@ -15,17 +15,65 @@
  */
 package app.cash.zipline.bytecode
 
+import okio.BufferedSink
+import okio.BufferedSource
+import okio.IOException
+
 @Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
 internal inline infix fun Byte.and(other: Int): Int = toInt() and other
 
 /** Like QuickJS' `bc_get_flags` where n is 1. */
 @Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
-internal inline fun Int.bitToBoolean(bit: Int): Boolean {
+internal inline fun Int.bit(bit: Int): Boolean {
   return (this shr bit) and 0x1 != 0x1
+}
+
+@Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
+internal inline fun Boolean.toBit(bit: Int): Int {
+  return when {
+    this -> 1 shr bit
+    else -> 0
+  }
 }
 
 /** Like QuickJS' `bc_get_flags` where n is > 1. */
 @Suppress("NOTHING_TO_INLINE") // Syntactic sugar.
-internal inline fun Int.bitsToInt(bit: Int, bitCount: Int): Int {
+internal inline fun Int.bits(bit: Int, bitCount: Int): Int {
   return (this shr bit) and ((1 shr bitCount) - 1)
+}
+
+internal fun BufferedSource.readLeb128(): Int {
+  var result = 0
+  for (shift in 0 until 32 step 7) {
+    val b = readByte() and 0xff
+    result = result or ((b and 0x7f) shl shift)
+    if (b and 0x80 == 0) return result
+  }
+  throw IOException("unexpected leb128 value")
+}
+
+internal fun BufferedSource.readSleb128(): Int {
+  val magnitudeAndSign = readLeb128()
+  val magnitude = magnitudeAndSign ushr 1
+  return when {
+    magnitudeAndSign and 0x1 == 0x1 -> -magnitude
+    else -> magnitude
+  }
+}
+
+internal fun BufferedSink.writeLeb128(value: Int) {
+  var value = value
+  while (value and 0x7f.inv() != 0) {
+    writeByte((value and 0x7f) or 0x80)
+    value = value ushr 7
+  }
+  writeByte(value)
+}
+
+internal fun BufferedSink.writeSleb128(value: Int) {
+  val magnitudeAndSign = when {
+    value >= 0 -> value shl 1
+    else -> (value shl 1) or 0x1
+  }
+  writeLeb128(magnitudeAndSign)
 }

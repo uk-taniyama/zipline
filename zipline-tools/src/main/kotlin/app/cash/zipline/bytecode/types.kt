@@ -34,7 +34,7 @@ data class JsString(val value: String) : JsObject()
 data class JsFunctionBytecode(
   val flags: Int,
   val jsMode: Byte,
-  val funcName: JsAtom,
+  val name: String,
   val argCount: Int,
   val varCount: Int,
   val definedArgCount: Int,
@@ -45,48 +45,41 @@ data class JsFunctionBytecode(
   val constantPool: List<JsObject>,
   val debug: Debug?,
 ) : JsObject() {
-  val hasPrototype get() = flags.bitToBoolean(0)
-  val hasSimpleParameterList get() = flags.bitToBoolean(1)
-  val isDerivedClassConstructor get() = flags.bitToBoolean(2)
-  val needHomeObject get() = flags.bitToBoolean(3)
-  val funcKind get() = flags.bitsToInt(4, 2)
-  val newTargetAllowed get() = flags.bitToBoolean(6)
-  val superCallAllowed get() = flags.bitToBoolean(7)
-  val superAllowed get() = flags.bitToBoolean(8)
-  val argumentsAllowed get() = flags.bitToBoolean(9)
-  val hasDebug get() = flags.bitToBoolean(10)
-  val backtraceBarrier get() = flags.bitToBoolean(11)
+  val hasPrototype get() = flags.bit(0)
+  val hasSimpleParameterList get() = flags.bit(1)
+  val isDerivedClassConstructor get() = flags.bit(2)
+  val needHomeObject get() = flags.bit(3)
+  val kind get() = flags.bits(bit = 4, bitCount = 2)
+  val newTargetAllowed get() = flags.bit(6)
+  val superCallAllowed get() = flags.bit(7)
+  val superAllowed get() = flags.bit(8)
+  val argumentsAllowed get() = flags.bit(9)
+  val hasDebug get() = flags.bit(10)
+  val backtraceBarrier get() = flags.bit(11)
 }
 
 class JsVarDef(
-  val varName: JsAtom,
+  val name: String,
   val scopeLevel: Int,
   val scopeNext: Int,
-  val varKind: Int, // JsVarKindEnum
+  val kind: Int, // JsVarKindEnum
   val isConst: Boolean,
   val isLexical: Boolean,
   val isCaptured: Boolean,
 )
 
 class JsClosureVar(
-  val varName: JsAtom,
+  val name: String,
   val varIndex: Int,
   val isLocal: Boolean,
   val isArg: Boolean,
   val isConst: Boolean,
   val isLexical: Boolean,
-  val varKind: Int, // JsVarKindEnum
+  val kind: Int, // JsVarKindEnum
 )
 
 class Debug(
-  val fileName: JsAtom,
+  val fileName: String,
   val lineNumber: Int,
   val pc2Line: ByteString,
 )
-
-sealed class JsAtom
-
-data class JsAtomInt(val value: Int) : JsAtom()
-
-data class JsAtomString(val index: Int, val value: String) : JsAtom()
-

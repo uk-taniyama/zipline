@@ -15,15 +15,36 @@
  */
 package app.cash.zipline.bytecode
 
+/**
+ * Maps each commonly-used string to an integer index for performance. Strings built into QuickJS
+ * are assigned an index statically; user-provided strings get an index dynamically.
+ *
+ * When encoding an object, built-in strings are not encoded.
+ */
 class AtomSet(
-  private val atoms: List<String>
+  val strings: List<String>
 ) {
-  fun get(value: Int): JsAtom {
-    val string = when {
-      value < BUILT_IN_ATOMS.size -> BUILT_IN_ATOMS[value]
-      else -> atoms[value - BUILT_IN_ATOMS.size]
+  private val stringToIndex = mutableMapOf<String, Int>()
+
+  init {
+    for ((index, string) in BUILT_IN_ATOMS.withIndex()) {
+      stringToIndex[string] = index
     }
-    return JsAtomString(value, string)
+    for ((index, string) in strings.withIndex()) {
+      stringToIndex[string] = index + BUILT_IN_ATOMS.size
+    }
+  }
+
+  fun get(value: Int): String {
+    return when {
+      value < BUILT_IN_ATOMS.size -> BUILT_IN_ATOMS[value]
+      else -> strings[value - BUILT_IN_ATOMS.size]
+    }
+  }
+
+  fun indexOf(value: String): Int {
+    val result = stringToIndex[value]
+    return result ?: throw IllegalArgumentException("not an atom: $value")
   }
 }
 

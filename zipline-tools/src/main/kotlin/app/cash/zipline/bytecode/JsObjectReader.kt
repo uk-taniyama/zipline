@@ -15,33 +15,45 @@
  */
 package app.cash.zipline.bytecode
 
+import okio.Buffer
 import okio.BufferedSource
 import okio.IOException
 
 class JsObjectReader(
   private val source: BufferedSource,
-  private val JS_WRITE_OBJ_BYTECODE: Boolean = true,
-  private val JS_WRITE_OBJ_REFERENCE: Boolean = true,
 ) {
-  private lateinit var atoms: AtomSet
+  // private val JS_WRITE_OBJ_BYTECODE: Boolean = true,
+  // private val JS_WRITE_OBJ_REFERENCE: Boolean = true,
+
+  constructor(byteArray: ByteArray) : this(Buffer().write(byteArray))
+
+  lateinit var atoms: AtomSet
+    private set
 
   fun readJsObject(): JsObject {
     check(!::atoms.isInitialized)
-    atoms = readObjectAtoms()
+    atoms = readAtoms()
     return readObjectRecursive()
   }
 
-  private fun readObjectAtoms(): AtomSet {
+  private fun readAtoms(): AtomSet {
     val version = source.readByte().toInt()
     if (version != version) {
       throw IOException("unexpected version (expected $BC_VERSION)")
     }
-    val atomCount = readLeb128()
+    val atomCount = source.readLeb128()
     val result = mutableListOf<String>()
     for (i in 0 until atomCount) {
       result += readJsString()
     }
     return AtomSet(result)
+  }
+
+  private fun readJsString(): String {
+    val byteCountAndType = source.readLeb128()
+    val isWideChar = byteCountAndType and 0x1
+    val byteCount = byteCountAndType shr 1
+    return source.readUtf8(byteCount.toLong())
   }
 
   private fun readObjectRecursive(): JsObject {
@@ -50,7 +62,7 @@ class JsObjectReader(
       BC_TAG_UNDEFINED -> JsUndefined
       BC_TAG_BOOL_FALSE -> JsBoolean(false)
       BC_TAG_BOOL_TRUE -> JsBoolean(true)
-      BC_TAG_INT32 -> JsInt(readSleb128())
+      BC_TAG_INT32 -> JsInt(source.readSleb128())
       BC_TAG_FLOAT64 -> JsDouble(Double.fromBits(source.readLong()))
       BC_TAG_STRING -> JsString(readJsString())
       BC_TAG_OBJECT -> TODO("BC_TAG_OBJECT")
@@ -74,15 +86,15 @@ class JsObjectReader(
   private fun readFunction(): JsFunctionBytecode {
     val flags = source.readShort().toInt()
     val jsMode = source.readByte()
-    val functionName = readAtom()
-    val argCount = readLeb128()
-    val varCount = readLeb128()
-    val definedArgCount = readLeb128()
-    val stackSize = readLeb128()
-    val closureVarCount = readLeb128()
-    val constantPoolCount = readLeb128()
-    val bytecodeLength = readLeb128()
-    val localCount = readLeb128()
+    val functionName = readAtomString()
+    val argCount = source.readLeb128()
+    val varCount = source.readLeb128()
+    val definedArgCount = source.readLeb128()
+    val stackSize = source.readLeb128()
+    val closureVarCount = source.readLeb128()
+    val constantPoolCount = source.readLeb128()
+    val bytecodeLength = source.readLeb128()
+    val localCount = source.readLeb128()
 
     val locals = mutableListOf<JsVarDef>()
     for (i in 0 until localCount) {
@@ -97,7 +109,7 @@ class JsObjectReader(
     val bytecode = source.readByteString(bytecodeLength.toLong())
     // TODO: fixup atoms within bytecode?
 
-    val hasDebug = flags.bitToBoolean(10)
+    val hasDebug = flags.bit(10)
     val debug: Debug? = if (hasDebug) readDebug() else null
 
     val constantPool = mutableListOf<JsObject>()
@@ -108,7 +120,7 @@ class JsObjectReader(
     return JsFunctionBytecode(
       flags = flags,
       jsMode = jsMode,
-      funcName = functionName,
+      name = functionName,
       argCount = argCount,
       varCount = varCount,
       definedArgCount = definedArgCount,
@@ -121,79 +133,60 @@ class JsObjectReader(
     )
   }
 
-  private fun readAtom(): JsAtom {
-    val valueAndType = readLeb128()
+  private fun readAtomString(): String {
+    val valueAndType = source.readLeb128()
     val value = valueAndType shr 1
-    if (valueAndType and 0x1 == 0x1) return JsAtomInt(value)
+    check(valueAndType and 0x1 != 0x1) { "expected a string but got an int" }
     return atoms.get(value)
   }
 
+  private fun readAtomInt(): Int {
+    val valueAndType = source.readLeb128()
+    val value = valueAndType shr 1
+    check(valueAndType and 0x1 == 0x1) { "expected an int but got a string" }
+    return value
+  }
+
   private fun readVarDef(): JsVarDef {
-    val name = readAtom()
-    val scopeLevel = readLeb128()
-    val scopeNext = readLeb128() - 1
+    val name = readAtomString()
+    val scopeLevel = source.readLeb128()
+    val scopeNext = source.readLeb128() - 1
     val flags = source.readByte().toInt()
     return JsVarDef(
-      varName = name,
+      name = name,
       scopeLevel = scopeLevel,
       scopeNext = scopeNext,
-      varKind = flags.bitsToInt(0, 4),
-      isConst = flags.bitToBoolean(4),
-      isLexical = flags.bitToBoolean(5),
-      isCaptured = flags.bitToBoolean(6),
+      kind = flags.bits(bit = 0, bitCount = 4),
+      isConst = flags.bit(4),
+      isLexical = flags.bit(5),
+      isCaptured = flags.bit(6),
     )
   }
 
   private fun readClosureVar(): JsClosureVar {
-    val name = readAtom()
-    val varIndex = readLeb128()
+    val name = readAtomString()
+    val varIndex = source.readLeb128()
     val flags = source.readByte().toInt()
     return JsClosureVar(
-      varName = name,
+      name = name,
       varIndex = varIndex,
-      isLocal = flags.bitToBoolean(0),
-      isArg = flags.bitToBoolean(1),
-      isConst = flags.bitToBoolean(2),
-      isLexical = flags.bitToBoolean(3),
-      varKind = flags.bitsToInt(4, 4),
+      isLocal = flags.bit(0),
+      isArg = flags.bit(1),
+      isConst = flags.bit(2),
+      isLexical = flags.bit(3),
+      kind = flags.bits(bit = 4, bitCount = 4),
     )
   }
 
   private fun readDebug(): Debug {
-    val fileName = readAtom()
-    val lineNumber = readLeb128()
-    val pc2lineLength = readLeb128()
+    val fileName = readAtomString()
+    val lineNumber = source.readLeb128()
+    val pc2lineLength = source.readLeb128()
     val pc2line = source.readByteString(pc2lineLength.toLong())
     return Debug(
       fileName = fileName,
       lineNumber = lineNumber,
       pc2Line = pc2line
     )
-  }
-
-  private fun readJsString(): String {
-    val lengthAndType = readLeb128()
-    val isWideChar = lengthAndType and 0x1
-    val byteCount = lengthAndType shr 1
-    return source.readUtf8(byteCount.toLong())
-  }
-
-  private fun readSleb128(): Int {
-    val magnitudeAndSign = readLeb128()
-    val magnitude = magnitudeAndSign ushr 1
-    return when {
-      magnitudeAndSign and 0x1 == 0x1 -> -magnitude
-      else -> magnitude
-    }
-  }
-
-  private fun readLeb128(): Int {
-    var result = 0
-    for (shift in 0 until 32 step 7) {
-      val b = source.readByte() and 0xff
-      result = result or ((b and 0x7f) shl shift)
-      if (b and 0x80 == 0) return result
-    }
-    throw IOException("unexpected leb128 value")
   }
 }
