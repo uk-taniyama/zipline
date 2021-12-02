@@ -28,6 +28,8 @@ internal fun loadNativeLibrary() {
     "/libquickjs.so"
   } else if (osName.contains("mac")) {
     "/libquickjs.dylib"
+  } else if (osName.contains("windows")) {
+    "/libquickjs.dll"
   } else {
     throw IllegalStateException("Unsupported OS: $osName")
   }

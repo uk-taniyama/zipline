@@ -18,15 +18,16 @@ kotlin {
     binaries.executable()
   }
 
-  linuxX64()
-  macosX64()
-  macosArm64()
-  iosArm64()
-  iosX64()
-  iosSimulatorArm64()
-  tvosArm64()
-  tvosSimulatorArm64()
-  tvosX64()
+  // linuxX64()
+  // macosX64()
+  // macosArm64()
+  // iosArm64()
+  // iosX64()
+  // iosSimulatorArm64()
+  // tvosArm64()
+  // tvosSimulatorArm64()
+  // tvosX64()
+  mingwX64()
 
   sourceSets {
     val commonMain by getting {
